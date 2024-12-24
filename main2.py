@@ -3,6 +3,7 @@
 # chat apiデモfunction callingは使える
 # threadはchat apiでは使えない
 # function_callingされたタイミングですべての結果が表示される仕様
+# function_callingは実行する関数を選び、引数を設定してくれるだけで、実際に実行はしてくれない。
 
 import sqlite3
 import streamlit as st
@@ -115,24 +116,45 @@ if prompt := st.chat_input("検索条件を入力してください"):
             "search_companies": search_companies,
         }
         function_name = response_message.function_call.name
-        function_to_call = available_functions[function_name]
-        function_args = json.loads(response_message.function_call.arguments)
-        function_response = function_to_call(**function_args)
+        function_to_call = available_functions.get(function_name)
+        if function_to_call:
+            try:
+                function_args = json.loads(response_message.function_call.arguments)
+                function_response = function_to_call(**function_args)
 
-        # 関数呼び出しの結果をメッセージに追加
-        st.session_state.messages.append({"role": "function", "name": function_name, "content": json.dumps(function_response)})
+                # 関数呼び出しの結果をメッセージに追加
+                st.session_state.messages.append({
+                    "role": "function",
+                    "name": function_name,
+                    "content": json.dumps(function_response)
+                })
 
-        if function_response:
-            result_text = "あなたにこの企業をお勧めします！ \n他に追加したい条件がありましたら教えてください！\n検索結果:\n"
-            for company in function_response:
-                result_text += f"- 社名: {company[0]}, 雇用形態: {company[1]}, 勤務地: {company[2]}, 給与: {company[3]}, 在宅: {company[4]}, 残業: {company[5]}\n"
+                if function_response:
+                    result_text = "あなたにこの企業をお勧めします！ \n他に追加したい条件がありましたら教えてください！\n検索結果:\n"
+                    for company in function_response:
+                        result_text += f"- 社名: {company[0]}, 雇用形態: {company[1]}, 勤務地: {company[2]}, 給与: {company[3]}, 在宅: {company[4]}, 残業: {company[5]}\n"
+                else:
+                    result_text = "該当する企業は見つかりませんでした。"
+
+                # アシスタントの応答として結果を追加
+                st.session_state.messages.append({"role": "assistant", "content": result_text})
+                with st.chat_message("assistant"):
+                    st.markdown(result_text)
+
+                # 追加の会話を継続するために、会話履歴を更新
+                continue_response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=st.session_state.messages,
+                )
+                continue_message = continue_response.choices[0].message.content
+                st.session_state.messages.append({"role": "assistant", "content": continue_message})
+                with st.chat_message("assistant"):
+                    st.markdown(continue_message)
+
+            except json.JSONDecodeError:
+                st.error("関数呼び出しの引数を解析できませんでした。")
         else:
-            result_text = "該当する企業は見つかりませんでした。"
-
-        # アシスタントの応答として結果を追加
-        st.session_state.messages.append({"role": "assistant", "content": result_text})
-        with st.chat_message("assistant"):
-            st.write(result_text)
+            st.error(f"利用可能な関数に `{function_name}` は存在しません。")
             
 
     else:
