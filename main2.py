@@ -141,15 +141,15 @@ if prompt := st.chat_input("検索条件を入力してください"):
                 with st.chat_message("assistant"):
                     st.markdown(result_text)
 
-                # 追加の会話を継続するために、会話履歴を更新
-                continue_response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=st.session_state.messages,
-                )
-                continue_message = continue_response.choices[0].message.content
-                st.session_state.messages.append({"role": "assistant", "content": continue_message})
-                with st.chat_message("assistant"):
-                    st.markdown(continue_message)
+                # # 追加の会話を継続するために、会話履歴を更新
+                # continue_response = client.chat.completions.create(
+                #     model="gpt-4",
+                #     messages=st.session_state.messages,
+                # )
+                # continue_message = continue_response.choices[0].message.content
+                # st.session_state.messages.append({"role": "assistant", "content": continue_message})
+                # with st.chat_message("assistant"):
+                #     st.markdown(continue_message)
 
             except json.JSONDecodeError:
                 st.error("関数呼び出しの引数を解析できませんでした。")
